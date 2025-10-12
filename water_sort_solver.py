@@ -51,6 +51,9 @@ class WaterSortGame:
     def is_valid_state(self,t_origen, t_destino):
         is_valid = -1
         o_empty = self.is_empty(t_origen)
+        if o_empty: 
+            return -1
+       
         d_empty = self.is_empty(t_destino)
         if d_empty:
             is_valid = self.capacity
@@ -83,7 +86,7 @@ class WaterSortGame:
             i+=1
         return is_empty
 
-    def state_to_tuple(self, state):
+    def state_to_tuple(self, state):  # TO DO: estos dos métodos hay que mirar si siguen valiendo para np-arrays
         return tuple(tuple(tube) for tube in state)
     
     def hash_state(self, state):
@@ -92,7 +95,7 @@ class WaterSortGame:
 
     
     def _contents_left(self, row):
-        # todos los numeeros q no sean 0 izq -> der
+        # todos los números q no sean 0 izq -> der
         return [int(x) for x in row if x != 0]
 
 
@@ -131,7 +134,7 @@ class WaterSortGame:
 
         src_row = new_state[i].copy() #origen 
         dst_row = new_state[j].copy() #destino
-        #aqui nos qeudamos con todos los colroes , sin ceros
+        #aqui nos quedamos con todos los colores , sin ceros
         src_contents = self._contents_left(src_row)
         dst_contents = self._contents_left(dst_row)
 
