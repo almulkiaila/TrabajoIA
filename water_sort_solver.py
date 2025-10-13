@@ -58,10 +58,14 @@ class WaterSortGame:
         if d_empty:
             is_valid = self.capacity
         else:
-             jo = self.position_first_color(t_origen)
-             jd = self.position_first_color(t_destino)
-             if(t_origen[jo]==t_destino[jd]):
-                 is_valid = self.capacityTube(t_destino)
+             org_contents = self._contents_left(t_origen)
+             dst_contents = self._contents_left(t_destino)
+             lorigen = self._top_block_len(org_contents)
+             cap_tube_dst = self.capacityTube(t_destino)
+
+             if org_contents[0]==dst_contents[0] and lorigen <= cap_tube_dst:
+                 is_valid = cap_tube_dst
+
         return is_valid
 
                  
@@ -108,6 +112,8 @@ class WaterSortGame:
         while k < len(contents) and contents[k] == c:
             k += 1
         return k
+    
+    
     # Convierte una lista de líquidos reales (sin ceros) en un tubo completo con ceros al final,
     #para representar los espacios vacíos.
     def _pack_row(self, contents):
@@ -145,6 +151,7 @@ class WaterSortGame:
         block = self._top_block_len(src_contents)#num de unidades
         space = self.capacity - len(dst_contents)#cuantos huecos tiene el destino
        
+       # Noe-> Esto se supone que habría que comprobarlo o ya se hace en el is_valid_state
         if space <= 0:
             return None
         #si el destino!=vacío y su top es de otro color
@@ -157,8 +164,8 @@ class WaterSortGame:
           return None
 
        
-        src_contents = src_contents[block:]#le quitamos el bloque de tam block
-        dst_contents = [color] * block + dst_contents#añadimos al inicio del destino block copias de color.
+        src_contents = src_contents[block:] #le quitamos el bloque de tam block
+        dst_contents = [color] * block + dst_contents #añadimos al inicio del destino block copias de color.
 
         new_state[i] = self._pack_row(src_contents)
         new_state[j] = self._pack_row(dst_contents)
