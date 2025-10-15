@@ -51,14 +51,21 @@ class WaterSortGame:
     def is_valid_state(self,t_origen, t_destino):
         is_valid = -1
         o_empty = self.is_empty(t_origen)
+        if o_empty: 
+            return -1
+       
         d_empty = self.is_empty(t_destino)
         if d_empty:
             is_valid = self.capacity
         else:
-             jo = self.position_first_color(t_origen)
-             jd = self.position_first_color(t_destino)
-             if(t_origen[jo]==t_destino[jd]):
-                 is_valid = self.capacityTube(t_destino)
+             org_contents = self._contents_left(t_origen)
+             dst_contents = self._contents_left(t_destino)
+             lorigen = self._top_block_len(org_contents)
+             cap_tube_dst = self.capacityTube(t_destino)
+
+             if org_contents[0]==dst_contents[0] and lorigen <= cap_tube_dst:
+                 is_valid = cap_tube_dst
+
         return is_valid
 
                  
@@ -83,7 +90,7 @@ class WaterSortGame:
             i+=1
         return is_empty
 
-    def state_to_tuple(self, state):
+    def state_to_tuple(self, state):  # TO DO: estos dos métodos hay que mirar si siguen valiendo para np-arrays
         return tuple(tuple(tube) for tube in state)
     
     def hash_state(self, state):
@@ -92,7 +99,7 @@ class WaterSortGame:
 
     
     def _contents_left(self, row):
-        # todos los numeeros q no sean 0 izq -> der
+        # todos los números q no sean 0 izq -> der
         return [int(x) for x in row if x != 0]
 
 
@@ -105,6 +112,8 @@ class WaterSortGame:
         while k < len(contents) and contents[k] == c:
             k += 1
         return k
+    
+    
     # Convierte una lista de líquidos reales (sin ceros) en un tubo completo con ceros al final,
     #para representar los espacios vacíos.
     def _pack_row(self, contents):
@@ -131,7 +140,7 @@ class WaterSortGame:
 
         src_row = new_state[i].copy() #origen 
         dst_row = new_state[j].copy() #destino
-        #aqui nos qeudamos con todos los colroes , sin ceros
+        #aqui nos quedamos con todos los colores , sin ceros
         src_contents = self._contents_left(src_row)
         dst_contents = self._contents_left(dst_row)
 
@@ -142,20 +151,8 @@ class WaterSortGame:
         block = self._top_block_len(src_contents)#num de unidades
         space = self.capacity - len(dst_contents)#cuantos huecos tiene el destino
        
-        if space <= 0:
-            return None
-        #si el destino!=vacío y su top es de otro color
-        if dst_contents and dst_contents[0] != color:
-            return None
-        
-        #si el bloque entero no cabe en el destino, no puedes verter
-        #NO SE SI ES ASI ???
-        if block > space:
-          return None
-
-       
-        src_contents = src_contents[block:]#le quitamos el bloque de tam block
-        dst_contents = [color] * block + dst_contents#añadimos al inicio del destino block copias de color.
+        src_contents = src_contents[block:] #le quitamos el bloque de tam block
+        dst_contents = [color] * block + dst_contents #añadimos al inicio del destino block copias de color.
 
         new_state[i] = self._pack_row(src_contents)
         new_state[j] = self._pack_row(dst_contents)
@@ -236,6 +233,73 @@ class SearchAlgorithm:
         return None, stats
 
 
+    def dfs(self, initial_state):
+            t0 = time.time()
+            ini_key = self.game.state_to_tuple(initial_state)
+
+            if self.game.is_goal_state(initial_state):
+                t1 = time.time()
+                return [], {
+                    'nodos_expandidos': 0,
+                    'nodos_en_memoria_max': 1,
+                    'tiempo_seg': t1 - t0,
+                    'profundidad_solucion': 0
+                }
+
+            pendientes = deque([initial_state])  
+            visitados = set([ini_key])           
+            padre = {ini_key: None}               
+            mov_que_lleva = {}                   
+
+            nodos_expandidos = 0
+            pico_memoria = len(pendientes) + len(visitados)
+
+            while pendientes:
+                estado = pendientes.pop()
+                nodos_expandidos += 1
+
+                for movimiento in self.game.get_valid_moves(estado):
+                    nuevo_estado = self.game.apply_move(estado, movimiento)
+                    if nuevo_estado is None:
+                        continue
+
+                    key = self.game.state_to_tuple(nuevo_estado)
+                    if key not in visitados:
+                        visitados.add(key)
+                        padre[key] = self.game.state_to_tuple(estado)
+                        mov_que_lleva[key] = movimiento
+
+                        if self.game.is_goal_state(nuevo_estado):
+                        
+                            camino = []
+                            cur = key
+                            while padre[cur] is not None:
+                                camino.append(mov_que_lleva[cur])
+                                cur = padre[cur]
+                            camino.reverse()
+
+                            t1 = time.time()
+                            pico_memoria = max(pico_memoria, len(pendientes) + len(visitados))
+                            stats = {
+                                'nodos_expandidos': nodos_expandidos,
+                                'nodos_en_memoria_max': pico_memoria,
+                                'tiempo_seg': t1 - t0,
+                                'profundidad_solucion': len(camino)
+                            }
+                            return camino, stats
+
+                        pendientes.append(nuevo_estado)
+                        pico_memoria = max(pico_memoria, len(pendientes) + len(visitados))
+
+            t1 = time.time()
+            stats = {
+                'nodos_expandidos': nodos_expandidos,
+                'nodos_en_memoria_max': pico_memoria,
+                'tiempo_seg': t1 - t0,
+                'profundidad_solucion': None
+            }
+            return None, stats
+
 ##PRUEBA
 
 game = WaterSortGame(num_tubes=5, num_colors=3, seed=42)
@@ -245,7 +309,7 @@ print("Estado inicial:")
 for i, row in enumerate(game.initial_state):
          print(f"Tubo {i}: {row.tolist()}")
 
-path, stats = solver.bfs(game.initial_state)
+path, stats = solver.dfs(game.initial_state)
 
 if path is None:
         print(" No se encontró solución.")
@@ -268,4 +332,3 @@ def apply_path_and_show(game, state, path):
 final_state = apply_path_and_show(game, game.initial_state, path)
 print("\nEstado final:")
 print_state(final_state)
-
