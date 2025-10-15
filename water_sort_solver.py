@@ -151,19 +151,6 @@ class WaterSortGame:
         block = self._top_block_len(src_contents)#num de unidades
         space = self.capacity - len(dst_contents)#cuantos huecos tiene el destino
        
-       # Noe-> Esto se supone que habría que comprobarlo o ya se hace en el is_valid_state
-        if space <= 0:
-            return None
-        #si el destino!=vacío y su top es de otro color
-        if dst_contents and dst_contents[0] != color:
-            return None
-        
-        #si el bloque entero no cabe en el destino, no puedes verter
-        #NO SE SI ES ASI ???
-        if block > space:
-          return None
-
-       
         src_contents = src_contents[block:] #le quitamos el bloque de tam block
         dst_contents = [color] * block + dst_contents #añadimos al inicio del destino block copias de color.
 
