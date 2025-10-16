@@ -1,4 +1,5 @@
 from collections import deque
+import heapq
 import time
 import numpy as np
 import random
@@ -95,8 +96,6 @@ class WaterSortGame:
     
     def hash_state(self, state):
         return hash(self.state_to_tuple(state))
-
-
     
     def _contents_left(self, row):
         # todos los números q no sean 0 izq -> der
@@ -144,7 +143,7 @@ class WaterSortGame:
         src_contents = self._contents_left(src_row)
         dst_contents = self._contents_left(dst_row)
 
-        if not src_contents:
+        if not src_contents: #TO DO: Esto no puede pasar, se descarta en el get_valid_moves
             return None
 
         color = src_contents[0] #el color q se va a verter
@@ -179,7 +178,7 @@ class SearchAlgorithm:
             }
 
         pendientes = deque([initial_state])  
-        visitados = set([ini_key])           
+        visitados = set([ini_key])  # TO DO: lo de añadir el nodo inicial a visitados lo haría ya dentro del bucle         
         padre = {ini_key: None}               
         mov_que_lleva = {}                   
 
@@ -189,16 +188,18 @@ class SearchAlgorithm:
         while pendientes:
             estado = pendientes.popleft()
             nodos_expandidos += 1
+            #TO DO: Aquí metería el nodo en visitados
+            #TO DO: Aquí comprobaría si es goal_state
 
-            for movimiento in self.game.get_valid_moves(estado):
+            for movimiento in self.game.get_valid_moves(estado): # Expande el nodo
                 nuevo_estado = self.game.apply_move(estado, movimiento)
-                if nuevo_estado is None:
+                if nuevo_estado is None: # DUDA : por qué daría el nuevo estado None?
                     continue
 
                 key = self.game.state_to_tuple(nuevo_estado)
                 if key not in visitados:
-                    visitados.add(key)
-                    padre[key] = self.game.state_to_tuple(estado)
+                    visitados.add(key) # TO DO: no se puede meter en visitados hasta que no se expande
+                    padre[key] = self.game.state_to_tuple(estado)  # DUDA: Esto no lo entiendo
                     mov_que_lleva[key] = movimiento
 
                     if self.game.is_goal_state(nuevo_estado):
@@ -299,6 +300,135 @@ class SearchAlgorithm:
                 'profundidad_solucion': None
             }
             return None, stats
+    
+    
+##########################################################################################################
+    def a_star(self, initial_state,heuristic):
+        t0 = time.time()
+        ini_key = self.game.state_to_tuple(initial_state)
+
+        if self.game.is_goal_state(initial_state):
+            t1 = time.time()
+            return [], {
+                'nodos_expandidos': 0,
+                'nodos_en_memoria_max': 1,
+                'tiempo_seg': t1 - t0,
+                'profundidad_solucion': 0
+            }
+
+        pendientes = []
+        cont = 0  # Para que nunca se lleguen a comparar estados cuando reordeno la cola
+        h0 = heuristic(initial_state)
+        heapq.heappush(pendientes,(h0,0,cont,initial_state))
+
+
+        visitados = set()           
+        padre = {ini_key: None}               
+        mov_que_lleva = {}  
+        g_cost = {ini_key:0}                 
+
+        nodos_expandidos = 0
+        pico_memoria = len(pendientes) + len(visitados)
+
+        while pendientes:
+            f,g,_,estado = heapq.heappop(pendientes)
+            nodos_expandidos += 1
+
+            key = self.game.state_to_tuple(estado)
+            visitados.add(key)
+
+            if self.game.is_goal_state(estado): 
+                       
+                        camino = []
+                        cur = key
+                        while padre[cur] is not None:
+                            camino.append(mov_que_lleva[cur])
+                            cur = padre[cur]
+                        camino.reverse()
+
+                        t1 = time.time()
+                        pico_memoria = max(pico_memoria, len(pendientes) + len(visitados))
+                        stats = {
+                            'nodos_expandidos': nodos_expandidos,
+                            'nodos_en_memoria_max': pico_memoria,
+                            'tiempo_seg': t1 - t0,
+                            'profundidad_solucion': len(camino)
+                        }
+                        return camino, stats
+            
+            for movimiento in self.game.get_valid_moves(estado): # Expande el nodo
+                nuevo_estado = self.game.apply_move(estado, movimiento)
+
+                keynew = self.game.state_to_tuple(nuevo_estado)
+                gnew = g+1
+                fnew = gnew + heuristic(nuevo_estado)
+
+                # Si no hay sido visitado o encontramos mejor g:
+                if keynew not in visitados and (keynew not in g_cost or gnew < g_cost[keynew]):
+                    padre[keynew] = key
+                    mov_que_lleva[keynew] = movimiento
+                    g_cost[keynew] = gnew
+                    cont+=1
+                    heapq.heappush(pendientes,(fnew,gnew,cont,nuevo_estado))
+                    pico_memoria = max(pico_memoria, len(pendientes) + len(visitados))
+
+        t1 = time.time()
+        stats = {
+            'nodos_expandidos': nodos_expandidos,
+            'nodos_en_memoria_max': pico_memoria,
+            'tiempo_seg': t1 - t0,
+            'profundidad_solucion': None
+        }
+        return None, stats
+
+    def h1(self,state):
+        colors = np.unique(state[state!=0])
+        h = 0
+        for color in colors:
+            count = np.array([np.sum(tube == color) for tube in state])
+            tubes_with_color = np.sum(count>0)
+
+            if tubes_with_color <=1:
+                continue
+            
+            main_tube_idx = np.argmax(count)
+            main_amount = count[main_tube_idx]
+
+            weight_dispersion = np.sum(count) - main_amount
+
+            h+= (tubes_with_color-1)*weight_dispersion
+        return h
+    
+    def h2(self,state):
+        incomplete_tubes = 0
+        well_positioned_colors = 0
+
+        for tube in state:
+            colors = [c for c in tube if c!=0]
+
+            if len(colors) == 0:
+                continue
+            if len(colors)==4 and all(c==colors[0] for c in colors):
+                continue
+
+            incomplete_tubes+=1
+
+            if len(colors)>0:
+                lc = len(colors)
+                base_color = colors[-1]
+                consecutive = 1
+                for i in range(lc-2,-1,-1):
+                    if colors[i] == base_color:
+                        consecutive+=1
+                    else:
+                        break
+            well_positioned_colors+=consecutive
+        h = (incomplete_tubes*4)-well_positioned_colors
+        return h
+
+
+    
+########################################################################################################
 
 ##PRUEBA
 
@@ -309,12 +439,12 @@ print("Estado inicial:")
 for i, row in enumerate(game.initial_state):
          print(f"Tubo {i}: {row.tolist()}")
 
-path, stats = solver.dfs(game.initial_state)
+path, stats = solver.a_star(game.initial_state,solver.h2)
 
 if path is None:
         print(" No se encontró solución.")
 else:
-    print(f"Solucion en {len(path)} movimientos:")
+    print(f"Solución en {len(path)} movimientos:")
     print(path)
     print(" Stats:", stats)
 
