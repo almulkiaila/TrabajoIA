@@ -143,8 +143,7 @@ class WaterSortGame:
         src_contents = self._contents_left(src_row)
         dst_contents = self._contents_left(dst_row)
 
-       # if not src_contents: #HECHO: Esto no puede pasar, se descarta en el get_valid_moves
-        #    return None
+
 
         color = src_contents[0] #el color q se va a verter
         block = self._top_block_len(src_contents)#num de unidades
@@ -178,7 +177,7 @@ class SearchAlgorithm:
             }
 
         abiertos = deque([ini_key])  
-        cerrados = set()  # HECHO: lo de añadir el nodo inicial a visitados lo haría ya dentro del bucle         
+        cerrados = set()        
         padre = {ini_key: None}               
         mov_que_lleva = {}                   
 
@@ -188,16 +187,11 @@ class SearchAlgorithm:
         while abiertos:
             key_estado = abiertos.popleft()
             estado = np.array(key_estado)
-            #key_estado = self.game.state_to_tuple(estado)
-
-             #si ya estaba visitado saltamos
-            #if key_estado in visitados:
-                 #continue
            
-            #HECHO: Aquí metería el nodo en visitados
+          
             cerrados.add(key_estado)
             nodos_expandidos += 1
-            #HECHO: Aquí comprobaría si es goal_state
+          
             if self.game.is_goal_state(estado):
            
                 camino = []
@@ -220,13 +214,82 @@ class SearchAlgorithm:
             for movimiento in self.game.get_valid_moves(estado): # Expande el nodo
                 nuevo_estado = self.game.apply_move(estado, movimiento)
 
-            #    if nuevo_estado is None: # DUDA : por qué daría el nuevo estado None? -- resuelta _ tienes razon , el get valid moves ya lo filtra
-             #       continue
+                key = self.game.state_to_tuple(nuevo_estado)
+                if key not in abiertos and key not in cerrados:
+                
+                    padre[key] = key_estado  
+
+                   
+                    abiertos.append(key)
+                    pico_memoria = max(pico_memoria, len(abiertos) + len(cerrados))
+
+        t1 = time.time()
+        stats = {
+            'nodos_expandidos': nodos_expandidos,
+            'nodos_en_memoria_max': pico_memoria,
+            'tiempo_seg': t1 - t0,
+            'profundidad_solucion': None
+        }
+        return None, stats
+    
+    def dfs(self, initial_state):
+        t0 = time.time()
+        ini_key = self.game.state_to_tuple(initial_state)
+
+        if self.game.is_goal_state(initial_state):
+            t1 = time.time()
+            return [], {
+                'nodos_expandidos': 0,
+                'nodos_en_memoria_max': 1,
+                'tiempo_seg': t1 - t0,
+                'profundidad_solucion': 0
+            }
+
+        abiertos = deque([ini_key])  
+        cerrados = set()       
+        padre = {ini_key: None}               
+        mov_que_lleva = {}                   
+
+        nodos_expandidos = 0
+        pico_memoria = len(cerrados) + len(abiertos)
+
+        while abiertos:
+            key_estado = abiertos.pop()
+            estado = np.array(key_estado)
+           
+           
+           
+            cerrados.add(key_estado)
+            nodos_expandidos += 1
+          
+            if self.game.is_goal_state(estado):
+           
+                camino = []
+                cur = key_estado
+                while padre[cur] is not None:
+                    camino.append(mov_que_lleva[cur])
+                    cur = padre[cur]
+                camino.reverse()
+
+                t1 = time.time()
+                pico_memoria = max(pico_memoria, len(abiertos) + len(cerrados))
+                stats = {
+                    'nodos_expandidos': nodos_expandidos,
+                    'nodos_en_memoria_max': pico_memoria,
+                    'tiempo_seg': t1 - t0,
+                    'profundidad_solucion': len(camino)
+                }
+                return camino, stats
+
+            for movimiento in self.game.get_valid_moves(estado): # Expande el nodo
+                nuevo_estado = self.game.apply_move(estado, movimiento)
+
+           
 
                 key = self.game.state_to_tuple(nuevo_estado)
                 if key not in abiertos and key not in cerrados:
-                   ## visitados.add(key) # HECHO: no se puede meter en visitados hasta que no se expande
-                    padre[key] = key_estado  # DUDA: Esto no lo entiendo -- resuleta: el nuevo estado key proveine del estado actual key estado
+                  
+                    padre[key] = key_estado 
                     mov_que_lleva[key] = movimiento
 
                    
@@ -242,73 +305,7 @@ class SearchAlgorithm:
         }
         return None, stats
 
-
-    def dfs(self, initial_state):
-            t0 = time.time()
-            ini_key = self.game.state_to_tuple(initial_state)
-
-            if self.game.is_goal_state(initial_state):
-                t1 = time.time()
-                return [], {
-                    'nodos_expandidos': 0,
-                    'nodos_en_memoria_max': 1,
-                    'tiempo_seg': t1 - t0,
-                    'profundidad_solucion': 0
-                }
-
-            pendientes = deque([initial_state])  
-            visitados = set([ini_key])           
-            padre = {ini_key: None}               
-            mov_que_lleva = {}                   
-
-            nodos_expandidos = 0
-            pico_memoria = len(pendientes) + len(visitados)
-
-            while pendientes:
-                estado = pendientes.pop()
-                nodos_expandidos += 1
-
-                for movimiento in self.game.get_valid_moves(estado):
-                    nuevo_estado = self.game.apply_move(estado, movimiento)
-                    if nuevo_estado is None:
-                        continue
-
-                    key = self.game.state_to_tuple(nuevo_estado)
-                    if key not in visitados:
-                        visitados.add(key)
-                        padre[key] = self.game.state_to_tuple(estado)
-                        mov_que_lleva[key] = movimiento
-
-                        if self.game.is_goal_state(nuevo_estado):
-                        
-                            camino = []
-                            cur = key
-                            while padre[cur] is not None:
-                                camino.append(mov_que_lleva[cur])
-                                cur = padre[cur]
-                            camino.reverse()
-
-                            t1 = time.time()
-                            pico_memoria = max(pico_memoria, len(pendientes) + len(visitados))
-                            stats = {
-                                'nodos_expandidos': nodos_expandidos,
-                                'nodos_en_memoria_max': pico_memoria,
-                                'tiempo_seg': t1 - t0,
-                                'profundidad_solucion': len(camino)
-                            }
-                            return camino, stats
-
-                        pendientes.append(nuevo_estado)
-                        pico_memoria = max(pico_memoria, len(pendientes) + len(visitados))
-
-            t1 = time.time()
-            stats = {
-                'nodos_expandidos': nodos_expandidos,
-                'nodos_en_memoria_max': pico_memoria,
-                'tiempo_seg': t1 - t0,
-                'profundidad_solucion': None
-            }
-            return None, stats
+   
     
     
 ##########################################################################################################
@@ -495,7 +492,7 @@ print("Estado inicial:")
 for i, row in enumerate(game.initial_state):
          print(f"Tubo {i}: {row.tolist()}")
 
-path, stats = solver.a_star(game.initial_state,solver.h3)
+path, stats = solver.dfs(game.initial_state)
 
 print("\n=== RESULTADOS ===")
 if path is None:
