@@ -433,6 +433,40 @@ class SearchAlgorithm:
             well_positioned_colors+=consecutive
         h = (incomplete_tubes*4)-well_positioned_colors
         return h
+    
+
+
+
+    def h3(self, state):
+   
+        total_mezcladas = 0
+        total_bloqueadas = 0
+
+        for tube in state:
+            #contenidos reales sin ceros
+            contents = [int(c) for c in tube if c != 0]
+            if not contents:
+                continue
+
+            
+            #aqui contamos cuantos colores distintos hay en el tubo
+            colores_distintos = len(set(contents))
+            if colores_distintos > 1:
+                #todas cuentn como mezcladas
+                total_mezcladas += len(contents)
+
+                # contamos cuants de arriba son de color distinto
+                for i in range(len(contents)):
+                    ci = contents[i] #color del bloque actual
+                    # mira los de arriba: indices [0..i-1]
+                    for j in range(i):
+                        #si alguna de las de arriba es de distinto color, la unidad está bloqueada
+                        if contents[j] != ci:
+                            total_bloqueadas += 1
+           
+
+        return total_mezcladas + 2 * total_bloqueadas
+
 
 
     
@@ -440,21 +474,7 @@ class SearchAlgorithm:
 
 ##PRUEBA
 
-game = WaterSortGame(num_tubes=5, num_colors=3, seed=42)
-solver = SearchAlgorithm(game)
 
-print("Estado inicial:")
-for i, row in enumerate(game.initial_state):
-         print(f"Tubo {i}: {row.tolist()}")
-
-path, stats = solver.bfs(game.initial_state)
-
-if path is None:
-        print(" No se encontró solución.")
-else:
-    print(f"Solución en {len(path)} movimientos:")
-    print(path)
-    print(" Stats:", stats)
 
 
 def print_state(state):
@@ -467,6 +487,32 @@ def apply_path_and_show(game, state, path):
         cur = game.apply_move(cur, (i, j))
     return cur
 
-final_state = apply_path_and_show(game, game.initial_state, path)
-print("\nEstado final:")
-print_state(final_state)
+game = WaterSortGame(num_tubes=6, num_colors=4, seed=42)
+solver = SearchAlgorithm(game)
+
+print("Estado inicial:")
+for i, row in enumerate(game.initial_state):
+         print(f"Tubo {i}: {row.tolist()}")
+
+path, stats = solver.dfs(game.initial_state)
+
+print("\n=== RESULTADOS ===")
+if path is None:
+    print("No se encontró solución.")
+else:
+    print(f"Se encontró solución en {len(path)} movimientos.")
+    moves_str = ", ".join([f"({i}->{j})" for i, j in path])
+    print(f"Movimientos: {moves_str}")
+
+    print("\nEstado final:")
+    final_state = apply_path_and_show(game, game.initial_state, path)
+    print_state(final_state)
+
+    print("\nEstadísticas:")
+    for key, value in stats.items():
+        print(f"  {key}: {value}")
+    
+    
+
+
+
