@@ -91,8 +91,12 @@ class WaterSortGame:
             i+=1
         return is_empty
 
-    def state_to_tuple(self, state):  # HECHO: estos dos métodos hay que mirar si siguen valiendo para np-arrays : si 
-        return tuple(tuple(tube) for tube in state)
+    def state_to_tuple(self, state):
+        state = np.array(state, dtype=int)
+        if state.ndim == 1:
+            state = state.reshape(1, -1)
+        return tuple(tuple(int(x) for x in tube) for tube in state)
+
     
     def hash_state(self, state):
         return hash(self.state_to_tuple(state))
@@ -133,7 +137,7 @@ class WaterSortGame:
         return moves
 
     def apply_move(self, state, move):
-       
+        state = np.array(state, dtype=int)  
         i, j = move
         new_state = state.copy() # para no modificar el original
 
@@ -219,7 +223,7 @@ class SearchAlgorithm:
                 
                     padre[key] = key_estado  
 
-                   
+                    mov_que_lleva[key] = movimiento
                     abiertos.append(key)
                     pico_memoria = max(pico_memoria, len(abiertos) + len(cerrados))
 
@@ -467,13 +471,8 @@ class SearchAlgorithm:
 
 
 
-    
-########################################################################################################
 
-##PRUEBA
-
-
-
+'''''
 
 def print_state(state):
     for i, row in enumerate(state):
@@ -484,33 +483,4 @@ def apply_path_and_show(game, state, path):
     for (i, j) in path:
         cur = game.apply_move(cur, (i, j))
     return cur
-
-game = WaterSortGame(num_tubes=5, num_colors=3, seed=42)
-solver = SearchAlgorithm(game)
-
-print("Estado inicial:")
-for i, row in enumerate(game.initial_state):
-         print(f"Tubo {i}: {row.tolist()}")
-
-path, stats = solver.dfs(game.initial_state)
-
-print("\n=== RESULTADOS ===")
-if path is None:
-    print("No se encontró solución.")
-else:
-    print(f"Se encontró solución en {len(path)} movimientos.")
-    moves_str = ", ".join([f"({i}->{j})" for i, j in path])
-    print(f"Movimientos: {moves_str}")
-
-    print("\nEstado final:")
-    final_state = apply_path_and_show(game, game.initial_state, path)
-    print_state(final_state)
-
-    print("\nEstadísticas:")
-    for key, value in stats.items():
-        print(f"  {key}: {value}")
-    
-    
-
-
-
+'''''
