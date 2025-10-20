@@ -107,13 +107,13 @@ class WaterSortGame:
 
     def state_to_tuple(self, state):
         state = np.array(state, dtype=int)
-        #if state.shape[0] != self.num_tubes:
-            #state = state.T
         return tuple(tuple(int(x) for x in tube) for tube in state)
 
     
-    def hash_state(self, state):
-        return hash(self.state_to_tuple(state))
+    def hash_state(self, state_tuple):
+        sorted_tubes = tuple(sorted(state_tuple))
+        return hash(sorted_tubes)
+
     
     def _contents_left(self, row):
         # todos los números q no sean 0 izq -> der
@@ -184,6 +184,7 @@ class SearchAlgorithm:
     def bfs(self, initial_state):
         t0 = time.time()
         ini_key = self.game.state_to_tuple(initial_state)
+        ini_hash = self.game.hash_state(ini_key)
 
         if self.game.is_goal_state(initial_state):
             t1 = time.time()
@@ -194,8 +195,9 @@ class SearchAlgorithm:
                 'profundidad_solucion': 0
             }
 
-        abiertos = deque([ini_key])  
-        cerrados = set()        
+        abiertos = deque([initial_state])  
+        cerrados = set()
+        abiertos_set = {ini_hash}    
         padre = {ini_key: None}               
         mov_que_lleva = {}                   
 
@@ -203,13 +205,12 @@ class SearchAlgorithm:
         pico_memoria = len(cerrados) + len(abiertos)
 
         while abiertos:
-            key_estado = abiertos.popleft()
-            estado = np.array(key_estado)
-           
-          
-            cerrados.add(key_estado)
+            estado = abiertos.popleft()
+            key_estado = self.game.state_to_tuple(estado)
+            hash_estado = self.game.hash_state(key_estado)
+            cerrados.add(hash_estado)
             nodos_expandidos += 1
-            #print("\n Nueva expansión: ",nodos_expandidos)
+            print("\n Nueva expansión: ",nodos_expandidos)
             if self.game.is_goal_state(estado):
            
                 camino = []
@@ -233,25 +234,14 @@ class SearchAlgorithm:
                 nuevo_estado = self.game.apply_move(estado, movimiento)
 
                 key = self.game.state_to_tuple(nuevo_estado)
+                hash_new_state = self.game.hash_state(key)
 
-                ya_dentro = False
-                for state in abiertos:
-                    if self.game.compare_two_states(nuevo_estado, np.array(state)):
-                        ya_dentro = True
-                        break
-                if not ya_dentro:
-                    for state in cerrados:
-                        if self.game.compare_two_states(nuevo_estado, np.array(state)):
-                            ya_dentro = True
-                            break
-
-                if not ya_dentro:
-                
+                if hash_new_state not in cerrados and hash_new_state not in abiertos_set:
                     padre[key] = key_estado  
-
                     mov_que_lleva[key] = movimiento
-                    #print("\n",key)
-                    abiertos.append(key)
+                    print("\n",key)
+                    abiertos.append(nuevo_estado)
+                    abiertos_set.add(hash_new_state)
                     pico_memoria = max(pico_memoria, len(abiertos) + len(cerrados))
 
         t1 = time.time()
@@ -266,6 +256,7 @@ class SearchAlgorithm:
     def dfs(self, initial_state):
         t0 = time.time()
         ini_key = self.game.state_to_tuple(initial_state)
+        ini_hash = self.game.hash_state(ini_key)
 
         if self.game.is_goal_state(initial_state):
             t1 = time.time()
@@ -276,8 +267,9 @@ class SearchAlgorithm:
                 'profundidad_solucion': 0
             }
 
-        abiertos = deque([ini_key])  
-        cerrados = set()       
+        abiertos = deque([initial_state])  
+        cerrados = set()
+        abiertos_set = {ini_hash}    
         padre = {ini_key: None}               
         mov_que_lleva = {}                   
 
@@ -285,14 +277,12 @@ class SearchAlgorithm:
         pico_memoria = len(cerrados) + len(abiertos)
 
         while abiertos:
-            key_estado = abiertos.pop()
-            estado = np.array(key_estado)
-           
-           
-           
-            cerrados.add(key_estado)
+            estado = abiertos.pop()
+            key_estado = self.game.state_to_tuple(estado)
+            hash_estado = self.game.hash_state(key_estado)
+            cerrados.add(hash_estado)
             nodos_expandidos += 1
-          
+            print("\n Nueva expansión: ",nodos_expandidos)
             if self.game.is_goal_state(estado):
            
                 camino = []
@@ -315,27 +305,15 @@ class SearchAlgorithm:
             for movimiento in self.game.get_valid_moves(estado): # Expande el nodo
                 nuevo_estado = self.game.apply_move(estado, movimiento)
 
-           
-
                 key = self.game.state_to_tuple(nuevo_estado)
-                ya_dentro = False
-                for state in abiertos:
-                    if self.game.compare_two_states(nuevo_estado, np.array(state)):
-                        ya_dentro = True
-                        break
-                if not ya_dentro:
-                    for state in cerrados:
-                        if self.game.compare_two_states(nuevo_estado, np.array(state)):
-                            ya_dentro = True
-                            break
+                hash_new_state = self.game.hash_state(key)
 
-                if not ya_dentro:
-                  
-                    padre[key] = key_estado 
+                if hash_new_state not in cerrados and hash_new_state not in abiertos_set:
+                    padre[key] = key_estado  
                     mov_que_lleva[key] = movimiento
-
-                   
-                    abiertos.append(key)
+                    print("\n",key)
+                    abiertos.append(nuevo_estado)
+                    abiertos_set.add(hash_new_state)
                     pico_memoria = max(pico_memoria, len(abiertos) + len(cerrados))
 
         t1 = time.time()
@@ -345,8 +323,7 @@ class SearchAlgorithm:
             'tiempo_seg': t1 - t0,
             'profundidad_solucion': None
         }
-        return None, stats
-
+        return cerrados, stats
    
     
     
