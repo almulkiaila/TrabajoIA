@@ -7,14 +7,11 @@ import random
 
 class WaterSortGame:
     def __init__(self, num_tubes,num_colors,seed):
-        self.num_tubes = num_tubes
-        self.num_colors = num_colors
-        self.capacity = 4
-        self.seed = seed
-        self.initial_state = self.generate_initial_state()
-
-
-
+            self.num_tubes = num_tubes
+            self.num_colors = num_colors
+            self.capacity = 4
+            self.seed = seed
+            self.initial_state = self.generate_initial_state()
     def generate_initial_state(self):
         if self.seed is not None:
             random.seed(self.seed)
@@ -47,7 +44,24 @@ class WaterSortGame:
                 j+=1
             i+=1
         return is_valid
-    
+
+    def compare_two_states(self, st1, st2):
+        st2_compare = st2.copy()
+        matched = np.zeros(len(st2_compare), dtype=bool)
+        for column1 in st1:
+            same = False
+            for i, column2 in enumerate(st2_compare):
+                if not matched[i] and (column1 == column2).all():
+                    same = True
+                    matched[i] = True
+                    break
+            if same:
+                continue
+            return False
+        return True
+            
+            
+            
 
     def is_valid_state(self,t_origen, t_destino):
         is_valid = -1
@@ -93,8 +107,8 @@ class WaterSortGame:
 
     def state_to_tuple(self, state):
         state = np.array(state, dtype=int)
-        if state.ndim == 1:
-            state = state.reshape(1, -1)
+        #if state.shape[0] != self.num_tubes:
+            #state = state.T
         return tuple(tuple(int(x) for x in tube) for tube in state)
 
     
@@ -120,8 +134,8 @@ class WaterSortGame:
     # Convierte una lista de líquidos reales (sin ceros) en un tubo completo con ceros al final,
     #para representar los espacios vacíos.
     def _pack_row(self, contents):
-      
-        arr = contents + [0] * (self.capacity - len(contents))
+        #arr = contents + [0] * (self.capacity - len(contents))
+        arr = [0] * (self.capacity - len(contents)) + contents
         return np.array(arr, dtype=int)
 
     def get_valid_moves(self, state):
@@ -152,7 +166,7 @@ class WaterSortGame:
         color = src_contents[0] #el color q se va a verter
         block = self._top_block_len(src_contents)#num de unidades
         space = self.capacity - len(dst_contents)#cuantos huecos tiene el destino
-       
+
         src_contents = src_contents[block:] #le quitamos el bloque de tam block
         dst_contents = [color] * block + dst_contents #añadimos al inicio del destino block copias de color.
 
@@ -195,7 +209,7 @@ class SearchAlgorithm:
           
             cerrados.add(key_estado)
             nodos_expandidos += 1
-          
+            #print("\n Nueva expansión: ",nodos_expandidos)
             if self.game.is_goal_state(estado):
            
                 camino = []
@@ -219,11 +233,24 @@ class SearchAlgorithm:
                 nuevo_estado = self.game.apply_move(estado, movimiento)
 
                 key = self.game.state_to_tuple(nuevo_estado)
-                if key not in abiertos and key not in cerrados:
+
+                ya_dentro = False
+                for state in abiertos:
+                    if self.game.compare_two_states(nuevo_estado, np.array(state)):
+                        ya_dentro = True
+                        break
+                if not ya_dentro:
+                    for state in cerrados:
+                        if self.game.compare_two_states(nuevo_estado, np.array(state)):
+                            ya_dentro = True
+                            break
+
+                if not ya_dentro:
                 
                     padre[key] = key_estado  
 
                     mov_que_lleva[key] = movimiento
+                    #print("\n",key)
                     abiertos.append(key)
                     pico_memoria = max(pico_memoria, len(abiertos) + len(cerrados))
 
@@ -234,7 +261,7 @@ class SearchAlgorithm:
             'tiempo_seg': t1 - t0,
             'profundidad_solucion': None
         }
-        return None, stats
+        return cerrados, stats
     
     def dfs(self, initial_state):
         t0 = time.time()
@@ -291,7 +318,18 @@ class SearchAlgorithm:
            
 
                 key = self.game.state_to_tuple(nuevo_estado)
-                if key not in abiertos and key not in cerrados:
+                ya_dentro = False
+                for state in abiertos:
+                    if self.game.compare_two_states(nuevo_estado, np.array(state)):
+                        ya_dentro = True
+                        break
+                if not ya_dentro:
+                    for state in cerrados:
+                        if self.game.compare_two_states(nuevo_estado, np.array(state)):
+                            ya_dentro = True
+                            break
+
+                if not ya_dentro:
                   
                     padre[key] = key_estado 
                     mov_que_lleva[key] = movimiento
@@ -372,6 +410,8 @@ class SearchAlgorithm:
                 keynew = self.game.state_to_tuple(nuevo_estado)
                 gnew = g+1
                 fnew = gnew + heuristic(nuevo_estado)
+
+                
 
                 # Si no hay sido visitado o encontramos mejor g:
                 if keynew not in visitados and (keynew not in g_cost or gnew < g_cost[keynew]):
@@ -484,3 +524,8 @@ def apply_path_and_show(game, state, path):
         cur = game.apply_move(cur, (i, j))
     return cur
 '''''
+
+game = WaterSortGame(8,4,0)
+solver = SearchAlgorithm(game)
+print(game.initial_state)
+print(solver.bfs(game.initial_state))

@@ -1,5 +1,5 @@
-from water_sort_solver import WaterSortGame, SearchAlgorithm 
-
+from water_sort_solver import WaterSortGame, SearchAlgorithm  
+import numpy as np
 def main():
     print("\n=== Water Sort Puzzle Solver ===\n")
 
@@ -84,7 +84,7 @@ def main():
         print(f"Movimientos: {moves_str}")
 
     # --- Modo paso a paso o automático ---
-    cur_state = game.initial_state.copy()
+    cur_state = np.copy(game.initial_state)
     for idx, (i, j) in enumerate(path, 1):
         cur_state = game.apply_move(cur_state, (i, j))
         if step_mode:
@@ -92,6 +92,7 @@ def main():
             for t, row in enumerate(cur_state):
                 print(f"Tubo {t}: {row.tolist()}")
             input("Presiona Enter para continuar...")
+
 
     if not step_mode:
         print("\n=== Estado final ===")
