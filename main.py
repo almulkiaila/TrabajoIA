@@ -1,4 +1,4 @@
-from water_sort_solver import WaterSortGame, SearchAlgorithm  
+from water_sort_solver  import WaterSortGame, SearchAlgorithm  
 import numpy as np
 def main():
     print("\n=== Water Sort Puzzle Solver ===\n")
