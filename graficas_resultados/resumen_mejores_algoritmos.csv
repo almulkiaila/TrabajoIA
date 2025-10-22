@@ -1,0 +1,5 @@
+métrica,mejor_algoritmo,valor_promedio
+nodos_expandidos,DFS,22.558333333333334
+nodos_en_memoria_max,DFS,83.56944444444444
+tiempo_seg,DFS,0.023287679751714023
+profundidad_solucion,DFS,20.308333333333334
