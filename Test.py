@@ -10,7 +10,6 @@ seeds = range(10)                # 10 semillas
 algoritmos = ["BFS", "DFS", "A*_h1", "A*_h2", "A*_h3"]
 OUTPUT_FILE = "resultados_pruebas.csv"
 
-# ===== FUNCIONES =====
 def ejecutar_algoritmo(game, solver, initial_state, algoritmo):
     start = time.time()
     try:
