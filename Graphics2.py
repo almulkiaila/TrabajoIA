@@ -1,150 +1,100 @@
 import os
 import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import plotly.express as px
 
 # === Configuración ===
 INPUT_FILE = "resultados_pruebas.csv"
 OUTPUT_DIR = "graficas_resultados"
 
-sns.set(style="whitegrid", context="talk")
-
-# Crear carpetas
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-for sub in ["lineas", "barras", "facets"]:
-    os.makedirs(os.path.join(OUTPUT_DIR, f"graficas_{sub}"), exist_ok=True)
+os.makedirs(os.path.join(OUTPUT_DIR, "graficas_3D_comparativa_final_colores"), exist_ok=True)
 
 # === Cargar datos ===
-print(f"📂 Cargando datos desde {INPUT_FILE}...")
 df = pd.read_csv(INPUT_FILE)
-
-# Filtrar casos válidos
 df = df[df["solved"] == True].dropna(subset=["tiempo_seg", "nodos_expandidos"])
 
-# === Agrupar por configuración (promedio de 10 semillas) ===
-print("📊 Calculando promedios por configuración...")
-df_avg = (
-    df.groupby(["algoritmo", "num_tubes", "num_colors"])
-    .agg({
-        "nodos_expandidos": "mean",
-        "nodos_en_memoria_max": "mean",
-        "tiempo_seg": "mean",
-        "profundidad_solucion": "mean"
-    })
-    .reset_index()
-)
+# Crear máscara para identificar A*
+mask_astar = df["algoritmo"].str.startswith("A*")
 
-# Métricas a analizar
-metricas = ["nodos_expandidos", "nodos_en_memoria_max", "tiempo_seg", "profundidad_solucion"]
+# Seleccionar la mejor heurística A*_h3
+df_best_h3 = df[df["algoritmo"] == "A*_h3"]
+
+# Obtener lista de algoritmos (A*_h3 + demás)
+algoritmos = ["A*_h3"] + list(df[~mask_astar]["algoritmo"].unique())
+
+# Asignar colores distintos usando Plotly Express
+colors = px.colors.qualitative.Plotly
+color_map = {algoritmos[i]: colors[i % len(colors)] for i in range(len(algoritmos))}
+
+# Métricas a graficar
+metricas_3d = ["tiempo_seg", "nodos_expandidos"]
 
 def sanitize_filename(name: str):
-    """Evita errores al guardar nombres con caracteres especiales."""
     return name.replace("/", "_").replace("*", "star").replace(" ", "_")
 
 # ============================
-# 🔹 1. GRÁFICAS DE LÍNEAS
+# 🔹 GRÁFICAS 3D INTERACTIVAS CON COLORES DISTINTOS
 # ============================
-print("\n📈 Generando gráficas de líneas promedio...")
-for metrica in metricas:
-    plt.figure(figsize=(10, 6))
-    sns.lineplot(data=df_avg, x="num_tubes", y=metrica, hue="algoritmo", marker="o")
-    plt.title(f"Evolución promedio de {metrica} según número de tubos")
-    plt.xlabel("Número de tubos")
-    plt.ylabel(metrica)
-    plt.tight_layout()
-    plt.savefig(f"{OUTPUT_DIR}/graficas_lineas/lineplot_{sanitize_filename(metrica)}_tubos.png", dpi=300)
-    plt.close()
+for metrica in metricas_3d:
+    fig = go.Figure()
 
-    plt.figure(figsize=(10, 6))
-    sns.lineplot(data=df_avg, x="num_colors", y=metrica, hue="algoritmo", marker="o")
-    plt.title(f"Evolución promedio de {metrica} según número de colores")
-    plt.xlabel("Número de colores")
-    plt.ylabel(metrica)
-    plt.tight_layout()
-    plt.savefig(f"{OUTPUT_DIR}/graficas_lineas/lineplot_{sanitize_filename(metrica)}_colores.png", dpi=300)
-    plt.close()
-
-# ============================
-# 🔹 2. GRÁFICAS DE BARRAS
-# ============================
-print("📊 Generando gráficas de barras promedio...")
-for metrica in metricas:
-    plt.figure(figsize=(10, 6))
-    mean_vals = df_avg.groupby("algoritmo")[metrica].mean().reset_index()
-    sns.barplot(data=mean_vals, x="algoritmo", y=metrica)
-    plt.title(f"Media global de {metrica} por algoritmo")
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.savefig(f"{OUTPUT_DIR}/graficas_barras/barplot_{sanitize_filename(metrica)}.png", dpi=300)
-    plt.close()
-
-# ============================
-# 🔹 3. HEATMAPS
-# ============================
-print("🔥 Generando heatmaps promedio...")
-for metrica in metricas:
-    for algoritmo in df_avg["algoritmo"].unique():
-        subset = df_avg[df_avg["algoritmo"] == algoritmo]
-        pivot = subset.pivot_table(index="num_colors", columns="num_tubes", values=metrica, aggfunc="mean")
-
-        plt.figure(figsize=(8, 6))
-        sns.heatmap(pivot, cmap="viridis", annot=False)
-        plt.title(f"{algoritmo} - {metrica} (promedio)")
-        plt.xlabel("Número de tubos")
-        plt.ylabel("Número de colores")
-        plt.tight_layout()
-        plt.savefig(f"{OUTPUT_DIR}/graficas_facets/heatmap_{sanitize_filename(algoritmo)}_{sanitize_filename(metrica)}.png", dpi=300)
-        plt.close()
-
-print("\n✅ Todas las gráficas promediadas se han guardado en:")
-print(f"   📁 {os.path.abspath(OUTPUT_DIR)}")
-
-
-
-# ===============================================
-# 🔹 4. TABLA RESUMEN DE MEJORES ALGORITMOS
-# ===============================================
-print("\n🏆 Generando tabla resumen de mejores algoritmos...")
-
-resumen = []
-for metrica in metricas:
-    mean_vals = df_avg.groupby("algoritmo")[metrica].mean().reset_index()
-    # Para tiempo y nodos, el mejor es el mínimo; para profundidad, el máximo
-    mejor_algoritmo = (
-        mean_vals.loc[mean_vals[metrica].idxmin()]
-        if metrica != "profundidad_solucion"
-        else mean_vals.loc[mean_vals[metrica].idxmax()]
+    # ===== Añadir A*_h3 =====
+    fig.add_trace(
+        go.Mesh3d(
+            x=df_best_h3["num_tubes"],
+            y=df_best_h3["num_colors"],
+            z=df_best_h3[metrica],
+            color=color_map["A*_h3"],
+            opacity=0.7,
+            name="A*_h3",
+            hovertemplate=(
+                "Algoritmo: A*_h3<br>" +
+                "Tubes: %{x}<br>" +
+                "Colors: %{y}<br>" +
+                metrica + ": %{z}<extra></extra>"
+            )
+        )
     )
-    resumen.append({
-        "métrica": metrica,
-        "mejor_algoritmo": mejor_algoritmo["algoritmo"],
-        "valor_promedio": mejor_algoritmo[metrica]
-    })
 
-df_resumen = pd.DataFrame(resumen)
+    # ===== Añadir los demás algoritmos =====
+    for algoritmo in df[~mask_astar]["algoritmo"].unique():
+        subset = df[df["algoritmo"] == algoritmo]
+        fig.add_trace(
+            go.Mesh3d(
+                x=subset["num_tubes"],
+                y=subset["num_colors"],
+                z=subset[metrica],
+                color=color_map[algoritmo],
+                opacity=0.6,
+                name=algoritmo,
+                hovertemplate=(
+                    "Algoritmo: " + algoritmo + "<br>" +
+                    "Tubes: %{x}<br>" +
+                    "Colors: %{y}<br>" +
+                    metrica + ": %{z}<extra></extra>"
+                )
+            )
+        )
 
-# Guardar en CSV
-csv_path = os.path.join(OUTPUT_DIR, "resumen_mejores_algoritmos.csv")
-df_resumen.to_csv(csv_path, index=False)
-print(f"✅ Resumen guardado en {csv_path}")
+    # ===== Configuración de layout =====
+    fig.update_layout(
+        title=f"Comparativa 3D: A*_h3 vs demás algoritmos ({metrica})",
+        scene=dict(
+            xaxis_title="Número de tubos",
+            yaxis_title="Número de colores",
+            zaxis_title=metrica,
+            zaxis_type="log"
+        ),
+        legend_title_text="Algoritmo",
+        width=1000,
+        height=800
+    )
 
-# Mostrar tabla visual
-plt.figure(figsize=(6, 2 + len(df_resumen) * 0.5))
-plt.axis("off")
-tabla = plt.table(
-    cellText=df_resumen.values,
-    colLabels=df_resumen.columns,
-    cellLoc='center',
-    loc='center'
-)
-tabla.auto_set_font_size(False)
-tabla.set_fontsize(10)
-tabla.scale(1.2, 1.5)
-plt.title("🏁 Mejores algoritmos promedio por métrica", fontsize=12, pad=10)
-
-# Guardar imagen
-plt.savefig(f"{OUTPUT_DIR}/tabla_resumen_mejores.png", dpi=300, bbox_inches="tight")
-plt.close()
-
-print("\n📋 Tabla resumen generada correctamente:")
-print(df_resumen)
+    # ===== Guardar archivo HTML =====
+    filename = os.path.join(
+        OUTPUT_DIR,
+        f"graficas_3D_comparativa_final_colores/3D_comparativa_Astar_h3_{sanitize_filename(metrica)}.html"
+    )
+    fig.write_html(filename)
+    print(f"🧊 Guardado interactivo comparativa final: {filename}")
