@@ -1,9 +1,9 @@
-from water_sort_solver  import WaterSortGame, SearchAlgorithm  
+from water_sort_solver import WaterSortGame, SearchAlgorithm
 import numpy as np
+
 def main():
     print("\n=== Water Sort Puzzle Solver ===\n")
 
-    # --- Entradas del usuario ---
     while True:
         num_tubes = int(input("Número de tubos (5–12): "))
         if 5 <= num_tubes <= 12:
@@ -22,10 +22,13 @@ def main():
     print("  1. BFS")
     print("  2. DFS")
     print("  3. A*")
-    opt_alg = input("Selecciona algoritmo (1–3): ")
+    print("  4. DLS (profundidad limitada)")
+    print("  5. IDA* (Iterative Deepening A*)")
+    opt_alg = input("Selecciona algoritmo (1–5): ")
 
     algorithm = None
     heuristic = None
+    depth_limit = None
 
     if opt_alg == "1":
         algorithm = "bfs"
@@ -33,6 +36,17 @@ def main():
         algorithm = "dfs"
     elif opt_alg == "3":
         algorithm = "a*"
+        print("\nHeurísticas disponibles:")
+        print("  1. h1 (dispersión de colores)")
+        print("  2. h2 (colores bien colocados)")
+        print("  3. h3 (mezcla y bloqueo)")
+        opt_h = input("Selecciona heurística (1–3): ")
+        heuristic = opt_h
+    elif opt_alg == "4":
+        algorithm = "dls"
+        depth_limit = int(input("Introduce el límite de profundidad: "))
+    elif opt_alg == "5":
+        algorithm = "ida*"
         print("\nHeurísticas disponibles:")
         print("  1. h1 (dispersión de colores)")
         print("  2. h2 (colores bien colocados)")
@@ -72,11 +86,23 @@ def main():
         else:
             print("Heurística no válida. Usando h1 por defecto.")
             path, stats = solver.a_star(game.initial_state, solver.h1)
+    elif algorithm == "dls":
+        path, stats = solver.dls(game.initial_state, depth_limit)
+    elif algorithm == "ida*":
+        if heuristic == "1":
+            path, stats = solver.ida_star(game.initial_state, solver.h1)
+        elif heuristic == "2":
+            path, stats = solver.ida_star(game.initial_state, solver.h2)
+        elif heuristic == "3":
+            path, stats = solver.ida_star(game.initial_state, solver.h3)
+        else:
+            print("Heurística no válida. Usando h1 por defecto.")
+            path, stats = solver.ida_star(game.initial_state, solver.h1)
 
     # --- Resultados ---
     print("\n=== RESULTADOS ===")
     if path is None:
-        print("No se encontró solución.")
+        print("No se encontró solución (o se alcanzó el límite de profundidad).")
         return
     else:
         print(f"Se encontró solución en {len(path)} movimientos.")
@@ -92,7 +118,6 @@ def main():
             for t, row in enumerate(cur_state):
                 print(f"Tubo {t}: {row.tolist()}")
             input("Presiona Enter para continuar...")
-
 
     if not step_mode:
         print("\n=== Estado final ===")

@@ -438,6 +438,7 @@ class SearchAlgorithm:
         h = (incomplete_tubes*4)-well_positioned_colors
         return h
     
+##############################################OPCIONAL##############################################
 
 
 
@@ -471,6 +472,165 @@ class SearchAlgorithm:
 
         return total_mezcladas + 2 * total_bloqueadas
 
+#################################################################################################
+
+    def dls(self, initial_state,limit):
+            t0 = time.time()
+            ini_key = self.game.state_to_tuple(initial_state)
+            ini_hash = self.game.hash_state(ini_key)
+
+            if self.game.is_goal_state(initial_state):
+                t1 = time.time()
+                return [], {
+                    'nodos_expandidos': 0,
+                    'nodos_en_memoria_max': 1,
+                    'tiempo_seg': t1 - t0,
+                    'profundidad_solucion': 0
+                }
+
+            abiertos = deque([(initial_state, 0)])#cada elemnto : estdao,profundiad
+            cerrados = set()
+            abiertos_set = {ini_hash}    
+            padre = {ini_key: None}               
+            mov_que_lleva = {}                   
+
+            nodos_expandidos = 0
+            pico_memoria = len(cerrados) + len(abiertos)
+
+            while abiertos:
+                estado,profundidad = abiertos.pop()
+                key_estado = self.game.state_to_tuple(estado)
+                hash_estado = self.game.hash_state(key_estado)
+                cerrados.add(hash_estado)
+                nodos_expandidos += 1
+                if self.game.is_goal_state(estado):
+            
+                    camino = []
+                    cur = key_estado
+                    while padre[cur] is not None:
+                        camino.append(mov_que_lleva[cur])
+                        cur = padre[cur]
+                    camino.reverse()
+
+                    t1 = time.time()
+                    pico_memoria = max(pico_memoria, len(abiertos) + len(cerrados))
+                    stats = {
+                        'nodos_expandidos': nodos_expandidos,
+                        'nodos_en_memoria_max': pico_memoria,
+                        'tiempo_seg': t1 - t0,
+                        'profundidad_solucion': len(camino)
+                    }
+                    return camino, stats
+                if profundidad < limit:
+                    for movimiento in self.game.get_valid_moves(estado): 
+                        nuevo_estado = self.game.apply_move(estado, movimiento)
+
+                        key = self.game.state_to_tuple(nuevo_estado)
+                        hash_new_state = self.game.hash_state(key)
+
+                        if hash_new_state not in cerrados and hash_new_state not in abiertos_set:
+                            padre[key] = key_estado  
+                            mov_que_lleva[key] = movimiento
+                            abiertos.append((nuevo_estado,profundidad+1))
+                            abiertos_set.add(hash_new_state)
+                            pico_memoria = max(pico_memoria, len(abiertos) + len(cerrados))
+
+            t1 = time.time()
+            stats = {
+                'nodos_expandidos': nodos_expandidos,
+                'nodos_en_memoria_max': pico_memoria,
+                'tiempo_seg': t1 - t0,
+                'profundidad_solucion': None
+            }
+            return None, stats
+    
+
+######################################################################################################################
+    def ida_star(self, initial_state, heuristic):
+        
+
+        t0 = time.time()
+        ini_key = self.game.state_to_tuple(initial_state)
+        ini_hash = self.game.hash_state(ini_key)
+
+        # Caso trivial: ya está resuelto
+        if self.game.is_goal_state(initial_state):
+            t1 = time.time()
+            return [], {
+                'nodos_expandidos': 0,
+                'nodos_en_memoria_max': 1,
+                'tiempo_seg': t1 - t0,
+                'profundidad_solucion': 0
+            }
+
+        
+        threshold = heuristic(initial_state) # poda ← f(s0)
+        nodos_expandidos = 0
+        pico_memoria = 1
+
+        
+        while True:
+            abiertos = deque([(initial_state, 0)])  # (estado, coste g) -- Camino ← [s0]
+            padre = {ini_key: None}
+            mov_que_lleva = {}
+            cerrados = set()
+            next_threshold = float('inf')#sig-poda ← ∞
+
+            while abiertos:
+                estado, g = abiertos.pop()
+                key_estado = self.game.state_to_tuple(estado)
+                hash_estado = self.game.hash_state(key_estado)
+                cerrados.add(hash_estado)
+                nodos_expandidos += 1
+
+                f = g + heuristic(estado)
+                if f > threshold:
+                    next_threshold = min(next_threshold, f) #actualizar sig-poda
+                    continue
+
+                
+                if self.game.is_goal_state(estado): # ← último(Camino) ∈ Objetivos
+                    camino = []
+                    cur = key_estado
+                    while padre[cur] is not None:
+                        camino.append(mov_que_lleva[cur])
+                        cur = padre[cur]
+                    camino.reverse()
+                    t1 = time.time()
+                    pico_memoria = max(pico_memoria, len(abiertos) + len(cerrados))
+                    stats = {
+                        'nodos_expandidos': nodos_expandidos,
+                        'nodos_en_memoria_max': pico_memoria,
+                        'tiempo_seg': t1 - t0,
+                        'profundidad_solucion': len(camino)
+                    }
+                    return camino, stats
+
+                
+                for movimiento in self.game.get_valid_moves(estado): # ← avanzar
+                    nuevo_estado = self.game.apply_move(estado, movimiento)
+                    key_new = self.game.state_to_tuple(nuevo_estado)
+                    hash_new = self.game.hash_state(key_new)
+
+                    if hash_new not in cerrados:
+                        padre[key_new] = key_estado
+                        mov_que_lleva[key_new] = movimiento
+                        abiertos.append((nuevo_estado, g + 1))
+                        pico_memoria = max(pico_memoria, len(abiertos) + len(cerrados))
+
+            
+            if next_threshold == float('inf'):  #← si Camino=[] y sig-poda = ∞
+                t1 = time.time()
+                stats = {
+                    'nodos_expandidos': nodos_expandidos,
+                    'nodos_en_memoria_max': pico_memoria,
+                    'tiempo_seg': t1 - t0,
+                    'profundidad_solucion': None
+                }
+                return None, stats
+
+            
+            threshold = next_threshold  #  poda ← sig-poda; empezar de nuevo
 
 
 
@@ -486,4 +646,5 @@ def apply_path_and_show(game, state, path):
         cur = game.apply_move(cur, (i, j))
     return cur
 '''''
+
 
