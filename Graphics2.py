@@ -8,93 +8,100 @@ INPUT_FILE = "resultados_pruebas.csv"
 OUTPUT_DIR = "graficas_resultados"
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-os.makedirs(os.path.join(OUTPUT_DIR, "graficas_3D_comparativa_final_colores"), exist_ok=True)
+os.makedirs(os.path.join(OUTPUT_DIR, "graficas_3D_Astar_h3_BFS_DFS"), exist_ok=True)
 
 # === Cargar datos ===
 df = pd.read_csv(INPUT_FILE)
-df = df[df["solved"] == True].dropna(subset=["tiempo_seg", "nodos_expandidos"])
 
-# Crear máscara para identificar A*
-mask_astar = df["algoritmo"].str.startswith("A*")
+# Filtrar solo los algoritmos de interés y casos válidos
+algoritmos_interes = ["A*_h3", "BFS", "DFS"]
+df_filtrado = df[
+    df["algoritmo"].isin(algoritmos_interes) & 
+    (df["solved"] == True)
+].dropna(subset=["tiempo_seg", "nodos_expandidos", "nodos_en_memoria_max"])
 
-# Seleccionar la mejor heurística A*_h3
-df_best_h3 = df[df["algoritmo"] == "A*_h3"]
+# === Asignar colores ===
+colors = px.colors.qualitative.D3  # paleta bien contrastada
+color_map = {
+    "A*_h3": colors[0],
+    "BFS": colors[1],
+    "DFS": colors[2]
+}
 
-# Obtener lista de algoritmos (A*_h3 + demás)
-algoritmos = ["A*_h3"] + list(df[~mask_astar]["algoritmo"].unique())
-
-# Asignar colores distintos usando Plotly Express
-colors = px.colors.qualitative.Plotly
-color_map = {algoritmos[i]: colors[i % len(colors)] for i in range(len(algoritmos))}
-
-# Métricas a graficar
-metricas_3d = ["tiempo_seg", "nodos_expandidos"]
+# === Métricas a graficar ===
+metricas_3d = ["tiempo_seg", "nodos_expandidos", "nodos_en_memoria_max"]
 
 def sanitize_filename(name: str):
     return name.replace("/", "_").replace("*", "star").replace(" ", "_")
 
 # ============================
-# 🔹 GRÁFICAS 3D INTERACTIVAS CON COLORES DISTINTOS
+# 🔹 GRÁFICAS 3D INTERACTIVAS CON LEYENDA
 # ============================
 for metrica in metricas_3d:
     fig = go.Figure()
 
-    # ===== Añadir A*_h3 =====
-    fig.add_trace(
-        go.Mesh3d(
-            x=df_best_h3["num_tubes"],
-            y=df_best_h3["num_colors"],
-            z=df_best_h3[metrica],
-            color=color_map["A*_h3"],
-            opacity=0.7,
-            name="A*_h3",
-            hovertemplate=(
-                "Algoritmo: A*_h3<br>" +
-                "Tubes: %{x}<br>" +
-                "Colors: %{y}<br>" +
-                metrica + ": %{z}<extra></extra>"
-            )
-        )
-    )
+    for algoritmo in algoritmos_interes:
+        subset = df_filtrado[df_filtrado["algoritmo"] == algoritmo]
+        color = color_map[algoritmo]
 
-    # ===== Añadir los demás algoritmos =====
-    for algoritmo in df[~mask_astar]["algoritmo"].unique():
-        subset = df[df["algoritmo"] == algoritmo]
+        # --- Superficie 3D principal ---
         fig.add_trace(
             go.Mesh3d(
                 x=subset["num_tubes"],
                 y=subset["num_colors"],
                 z=subset[metrica],
-                color=color_map[algoritmo],
-                opacity=0.6,
+                color=color,
+                opacity=0.7,
                 name=algoritmo,
                 hovertemplate=(
                     "Algoritmo: " + algoritmo + "<br>" +
                     "Tubes: %{x}<br>" +
                     "Colors: %{y}<br>" +
                     metrica + ": %{z}<extra></extra>"
-                )
+                ),
+                showlegend=False
             )
         )
 
-    # ===== Configuración de layout =====
+        # --- Punto fantasma para mostrar el color en la leyenda ---
+        fig.add_trace(
+            go.Scatter3d(
+                x=[None], y=[None], z=[None],
+                mode="markers",
+                marker=dict(size=8, color=color),
+                name=algoritmo,
+                showlegend=True
+            )
+        )
+
+    # --- Configuración del layout ---
     fig.update_layout(
-        title=f"Comparativa 3D: A*_h3 vs demás algoritmos ({metrica})",
+        title=f"Comparativa 3D A*_h3 vs BFS vs DFS ({metrica})",
         scene=dict(
             xaxis_title="Número de tubos",
             yaxis_title="Número de colores",
             zaxis_title=metrica,
             zaxis_type="log"
         ),
-        legend_title_text="Algoritmo",
+        legend=dict(
+            title="Algoritmo",
+            itemsizing="constant",
+            x=0.02,
+            y=0.98,
+            bgcolor="rgba(255,255,255,0.7)",
+            bordercolor="black",
+            borderwidth=1
+        ),
         width=1000,
         height=800
     )
 
-    # ===== Guardar archivo HTML =====
+    # --- Guardar archivo HTML ---
     filename = os.path.join(
         OUTPUT_DIR,
-        f"graficas_3D_comparativa_final_colores/3D_comparativa_Astar_h3_{sanitize_filename(metrica)}.html"
+        f"graficas_3D_Astar_h3_BFS_DFS/3D_Astar_h3_BFS_DFS_{sanitize_filename(metrica)}.html"
     )
     fig.write_html(filename)
-    print(f"🧊 Guardado interactivo comparativa final: {filename}")
+    print(f"🧊 Guardado: {filename}")
+
+print("\n✅ Gráficas 3D comparativas A*_h3 vs BFS vs DFS generadas correctamente.")
