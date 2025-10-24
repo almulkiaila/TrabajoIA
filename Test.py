@@ -4,13 +4,12 @@ from tqdm import tqdm
 from water_sort_solver import WaterSortGame, SearchAlgorithm
 import os
 
-# ===== CONFIGURACIÓN =====
+
 num_tubes_range = range(5, 13)   # tubos de 5 a 12
 seeds = range(10)                # 10 semillas
 algoritmos = ["BFS", "DFS", "A*_h1", "A*_h2", "A*_h3"]
 OUTPUT_FILE = "resultados_pruebas.csv"
 
-# ===== FUNCIONES =====
 def ejecutar_algoritmo(game, solver, initial_state, algoritmo):
     start = time.time()
     try:
@@ -45,7 +44,8 @@ def ejecutar_algoritmo(game, solver, initial_state, algoritmo):
             "error": str(e)
         }
 
-# ===== CARGA DE CSV EXISTENTE (para reanudar) =====
+# Reanudar las pruebas por donde se quedó antes de ser interrumpido
+
 if os.path.exists(OUTPUT_FILE):
     df_existente = pd.read_csv(OUTPUT_FILE)
     print(f"📂 Reanudando desde '{OUTPUT_FILE}' con {len(df_existente)} resultados previos.")
@@ -56,14 +56,16 @@ else:
     df_existente = pd.DataFrame()
     resultados_guardados = set()
 
-# ===== BUCLE PRINCIPAL =====
+
+
+
 total_experimentos = sum(
     (num_tubes - 3) * len(seeds) * len(algoritmos) for num_tubes in num_tubes_range
 )
 print(f"\n🚀 Iniciando {total_experimentos} pruebas...\n")
 
-# Progreso global
-for num_tubes in tqdm(num_tubes_range, desc="🔹 Progreso general", position=0):
+
+for num_tubes in tqdm(num_tubes_range, desc="Progreso general", position=0):
     for num_colors in range(3, num_tubes - 1):  # regla: colores <= tubos - 2
         for seed in seeds:
             game = WaterSortGame(num_tubes, num_colors, seed)
@@ -103,6 +105,6 @@ for num_tubes in tqdm(num_tubes_range, desc="🔹 Progreso general", position=0)
 
                 resultados_guardados.add(clave)
 
-            print(f"✅ Completadas todas las pruebas para semilla {seed}.\n")
+            print(f"Completadas todas las pruebas para semilla {seed}.\n")
 
-print(f"\n✅ Resultados guardados y actualizados en '{OUTPUT_FILE}'")
+print(f"\n Resultados guardados y actualizados en '{OUTPUT_FILE}'")

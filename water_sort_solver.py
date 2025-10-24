@@ -104,7 +104,7 @@ class WaterSortGame:
         return [int(x) for x in row if x != 0]
 
 
-    #Este me calcula la longitud del ultimo color
+    #Este calcula la longitud del ultimo color
     def _top_block_len(self, contents):
         if not contents:
             return 0
@@ -118,7 +118,6 @@ class WaterSortGame:
     # Convierte una lista de líquidos reales (sin ceros) en un tubo completo con ceros al final,
     #para representar los espacios vacíos.
     def _pack_row(self, contents):
-        #arr = contents + [0] * (self.capacity - len(contents))
         arr = [0] * (self.capacity - len(contents)) + contents
         return np.array(arr, dtype=int)
 
@@ -438,9 +437,7 @@ class SearchAlgorithm:
         h = (incomplete_tubes*4)-well_positioned_colors
         return h
     
-##############################################OPCIONAL##############################################
-
-
+############################################## OPCIONAL ##############################################
 
     def h3(self, state):
    
@@ -488,7 +485,7 @@ class SearchAlgorithm:
                     'profundidad_solucion': 0
                 }
 
-            abiertos = deque([(initial_state, 0)])#cada elemnto : estdao,profundiad
+            abiertos = deque([(initial_state, 0)]) #cada elemento : estado,profundidad
             cerrados = set()
             abiertos_set = {ini_hash}    
             padre = {ini_key: None}               
@@ -632,19 +629,5 @@ class SearchAlgorithm:
             
             threshold = next_threshold  #  poda ← sig-poda; empezar de nuevo
 
-
-
-'''''
-
-def print_state(state):
-    for i, row in enumerate(state):
-        print(f"Tubo {i}: {row.tolist()}")
-
-def apply_path_and_show(game, state, path):
-    cur = state.copy()
-    for (i, j) in path:
-        cur = game.apply_move(cur, (i, j))
-    return cur
-'''''
 
 
